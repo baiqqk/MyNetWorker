@@ -7,8 +7,13 @@ Package.go: Define a tcp package.</br>
 </br>
 PackagedTcpClient.go: Inherits the tcpClientBase class. Implement the pairing of the sending package and the reply package</br>
 </br>
-EccTcpClient.go: Inherits the PackagedTcpClient class. 
-EccCmd.go: Define EccTcpClient command.
-EccPackage.go: Define EccPackage.
-Aes.go: Implement AES Encryption and Decryption.
-ECC.go: Implement ECC Encryption and Decryption.
+EccTcpClient.go: Inherits the PackagedTcpClient class. Implement encrypted communication; Realize communication key exchange;</br>
+</br>
+EccCmd.go: Define EccTcpClient command.</br>
+</br>
+EccPackage.go: Define EccPackage.</br>
+</br>
+Aes.go: Implement AES Encryption and Decryption.</br>
+</br>
+ECC.go: Implement ECC Encryption and Decryption.</br>
+</br>
