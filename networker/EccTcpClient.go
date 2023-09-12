@@ -10,54 +10,54 @@ import (
 	ecies "github.com/ecies/go/v2"
 )
 
-type FurisonTcpClient struct {
+type EccTcpClient struct {
 	PackagedTcpClient
-	EncryptKey       []byte
-	Ecc              *ECC
-	PubKey           *ecies.PublicKey
-	onFurisonPackage func(tcp *FurisonTcpClient, pkg *EccPackage)
+	EncryptKey   []byte
+	Ecc          *ECC
+	PubKey       *ecies.PublicKey
+	onEccPackage func(tcp *EccTcpClient, pkg *EccPackage)
 }
 
-func NewFurisonTcpClient() *FurisonTcpClient {
-	tcp := FurisonTcpClient{PackagedTcpClient: *NewClient(nil)}
+func NewEccTcpClient() *EccTcpClient {
+	tcp := EccTcpClient{PackagedTcpClient: *NewClient(nil)}
 	tcp.initVar()
 	return &tcp
 }
 
-func NewFurisonTcpClientWithConn(conn *net.Conn) *FurisonTcpClient {
-	tcp := FurisonTcpClient{PackagedTcpClient: *NewClient(conn)}
+func NewEccTcpClientWithConn(conn *net.Conn) *EccTcpClient {
+	tcp := EccTcpClient{PackagedTcpClient: *NewClient(conn)}
 	tcp.initVar()
 	return &tcp
 }
 
-func (tcp *FurisonTcpClient) SetFurisonPackageHandler(handler func(tcp *FurisonTcpClient, pkg *EccPackage)) {
+func (tcp *EccTcpClient) SetEccPackageHandler(handler func(tcp *EccTcpClient, pkg *EccPackage)) {
 	if nil == handler {
 		tcp.OnOnePackage = nil
-		tcp.onFurisonPackage = nil
+		tcp.onEccPackage = nil
 	} else {
 		tcp.OnOnePackage = tcp.onePackageHandler
-		tcp.onFurisonPackage = handler
+		tcp.onEccPackage = handler
 	}
 }
 
-func (tcp *FurisonTcpClient) initVar() {
+func (tcp *EccTcpClient) initVar() {
 	if nil == tcp.Ecc {
 		tcp.Ecc = &ECC{}
 		tcp.Ecc.initKey()
 	}
 }
 
-func (tcp *FurisonTcpClient) onePackageHandler(client *PackagedTcpClient, pacSN uint16, data []byte) {
-	tcp.onOneFurisonPackage(tcp.pkg2FurisonPkg(pacSN, data))
+func (tcp *EccTcpClient) onePackageHandler(client *PackagedTcpClient, pacSN uint16, data []byte) {
+	tcp.onOneEccPackage(tcp.pkg2EccPkg(pacSN, data))
 }
 
-func (tcp *FurisonTcpClient) onOneFurisonPackage(pkg *EccPackage) {
+func (tcp *EccTcpClient) onOneEccPackage(pkg *EccPackage) {
 	//非回复包的认证和心跳包处理
 	if pkg.PacSN&0x8000 <= 0 {
 		var cmd EccCmd
 		err := json.Unmarshal([]byte(pkg.Json), &cmd)
 		if nil != err {
-			fmt.Println("FurisonTcpClient.onOneFurisonPackage json转对象异常", err)
+			fmt.Println("EccTcpClient.onOneEccPackage json转对象异常", err)
 		} else {
 			switch cmd.Cmd {
 			case 1, 2:
@@ -66,14 +66,14 @@ func (tcp *FurisonTcpClient) onOneFurisonPackage(pkg *EccPackage) {
 		}
 	}
 
-	if nil == tcp.onFurisonPackage {
+	if nil == tcp.onEccPackage {
 		return
 	}
 
-	tcp.onFurisonPackage(tcp, pkg)
+	tcp.onEccPackage(tcp, pkg)
 }
 
-func (tcp *FurisonTcpClient) pkg2FurisonPkg(pacSN uint16, data []byte) *EccPackage {
+func (tcp *EccTcpClient) pkg2EccPkg(pacSN uint16, data []byte) *EccPackage {
 	jsonLen := (uint16(data[1]) << 8)
 	jsonLen |= uint16(data[2])
 
@@ -88,7 +88,7 @@ func (tcp *FurisonTcpClient) pkg2FurisonPkg(pacSN uint16, data []byte) *EccPacka
 		tcp.initVar()
 
 		if nil == tcp.EncryptKey && nil == tcp.Ecc {
-			fmt.Println("FurisonTcpServer.pkg2FurisonPkg PacSN=", pacSN, " 解密信息包失败：密钥为空 ")
+			fmt.Println("EccTcpServer.pkg2EccPkg PacSN=", pacSN, " 解密信息包失败：密钥为空 ")
 			return nil
 		}
 
@@ -98,7 +98,7 @@ func (tcp *FurisonTcpClient) pkg2FurisonPkg(pacSN uint16, data []byte) *EccPacka
 			if nil != tcp.EncryptKey {
 				deData, err = RandomDecrypt(data[3:jsonLen+3], tcp.EncryptKey)
 				if nil != err {
-					fmt.Println("FurisonTcpServer.pkg2FurisonPkg PacSN=", pacSN, " 解密信息包失败：", err)
+					fmt.Println("EccTcpServer.pkg2EccPkg PacSN=", pacSN, " 解密信息包失败：", err)
 					return nil
 				}
 			} else if nil != tcp.Ecc {
@@ -107,7 +107,7 @@ func (tcp *FurisonTcpClient) pkg2FurisonPkg(pacSN uint16, data []byte) *EccPacka
 					return nil
 				}
 			} else {
-				fmt.Println("FurisonTcpServer.pkg2FurisonPkg PacSN=", pacSN, " 解密信息包失败：没有密钥")
+				fmt.Println("EccTcpServer.pkg2EccPkg PacSN=", pacSN, " 解密信息包失败：没有密钥")
 				return nil
 			}
 
@@ -118,7 +118,7 @@ func (tcp *FurisonTcpClient) pkg2FurisonPkg(pacSN uint16, data []byte) *EccPacka
 	return &ansPkg
 }
 
-func (tcp *FurisonTcpClient) Pac2Stream(pkg *EccPackage) []byte {
+func (tcp *EccTcpClient) Pac2Stream(pkg *EccPackage) []byte {
 	var data []byte
 	pkg.IsEncrypted = false
 	if nil != tcp.EncryptKey {
@@ -135,7 +135,7 @@ func (tcp *FurisonTcpClient) Pac2Stream(pkg *EccPackage) []byte {
 	return data
 }
 
-func (tcp *FurisonTcpClient) SendJson(sn uint16, json string, extData []byte) bool {
+func (tcp *EccTcpClient) SendJson(sn uint16, json string, extData []byte) bool {
 	pkg := EccPackage{}
 	pkg.ExtData = extData
 	pkg.Json = json
@@ -144,11 +144,11 @@ func (tcp *FurisonTcpClient) SendJson(sn uint16, json string, extData []byte) bo
 	return tcp.Send(sn, tcp.Pac2Stream(&pkg))
 }
 
-func (tcp *FurisonTcpClient) SendJsonJava(sn int, json string, extData []byte) bool {
+func (tcp *EccTcpClient) SendJsonJava(sn int, json string, extData []byte) bool {
 	return tcp.SendJson(uint16(sn), json, extData)
 }
 
-func (tcp *FurisonTcpClient) SendJsonAndWait(sn uint16, json string, extData []byte, msWait int) *EccPackage {
+func (tcp *EccTcpClient) SendJsonAndWait(sn uint16, json string, extData []byte, msWait int) *EccPackage {
 	pkg := EccPackage{}
 	pkg.ExtData = extData
 	pkg.Json = json
@@ -156,41 +156,41 @@ func (tcp *FurisonTcpClient) SendJsonAndWait(sn uint16, json string, extData []b
 
 	ans := tcp.SendAndWait(sn, tcp.Pac2Stream(&pkg), msWait)
 	if nil == ans {
-		fmt.Println("FurisonTcpServer.SendJsonAndWait PacSN=", sn, " 没有收到回复 PacSN=")
+		fmt.Println("EccTcpServer.SendJsonAndWait PacSN=", sn, " 没有收到回复 PacSN=")
 		return nil
 	}
 
 	jsonLen := (uint16(ans.Data[1]) << 8)
 	jsonLen |= uint16(ans.Data[2])
 
-	ansPkg := tcp.pkg2FurisonPkg(sn, ans.Data)
+	ansPkg := tcp.pkg2EccPkg(sn, ans.Data)
 
 	return ansPkg
 }
 
-func (tcp *FurisonTcpClient) SendJsonAndWaitJava(sn int, json string, extData []byte, msWait int) *EccPackage {
+func (tcp *EccTcpClient) SendJsonAndWaitJava(sn int, json string, extData []byte, msWait int) *EccPackage {
 	return tcp.SendJsonAndWait(uint16(sn), json, extData, msWait)
 }
 
-func (tcp *FurisonTcpClient) ReadFurisonPackage() *EccPackage {
-	return tcp.readFurisonPackage(0)
+func (tcp *EccTcpClient) ReadEccPackage() *EccPackage {
+	return tcp.readEccPackage(0)
 }
 
-func (tcp *FurisonTcpClient) readFurisonPackage(msTimeOut int) *EccPackage {
+func (tcp *EccTcpClient) readEccPackage(msTimeOut int) *EccPackage {
 	pkg := tcp.PackagedTcpClient.readPackage(msTimeOut)
 
 	if nil == pkg {
 		return nil
 	}
 
-	fuPkg := tcp.pkg2FurisonPkg(pkg.PacSN, pkg.Data)
+	fuPkg := tcp.pkg2EccPkg(pkg.PacSN, pkg.Data)
 
 	//非回复包的认证和心跳包处理
 	if pkg.PacSN&0x8000 <= 0 {
 		var cmd EccCmd
 		err := json.Unmarshal([]byte(fuPkg.Json), &cmd)
 		if nil != err {
-			fmt.Println("FurisonTcpClient.ReadFurisonPackage json转对象异常", err)
+			fmt.Println("EccTcpClient.ReadEccPackage json转对象异常", err)
 		} else {
 			switch cmd.Cmd {
 			case 1, 2:
@@ -202,7 +202,7 @@ func (tcp *FurisonTcpClient) readFurisonPackage(msTimeOut int) *EccPackage {
 	return fuPkg
 }
 
-func (tcp *FurisonTcpClient) onAuthorizeCmd(pacSN uint16, cmd *EccCmd) {
+func (tcp *EccTcpClient) onAuthorizeCmd(pacSN uint16, cmd *EccCmd) {
 	tcp.initVar()
 
 	var newKey []byte
@@ -215,14 +215,14 @@ func (tcp *FurisonTcpClient) onAuthorizeCmd(pacSN uint16, cmd *EccCmd) {
 	case Cmd_GetPubKey:
 		{
 			if nil == cmd.Data || len(cmd.Data.(string)) <= 0 {
-				fmt.Println("FurisonTcpClient.onAuthorizeCmd 空公钥")
+				fmt.Println("EccTcpClient.onAuthorizeCmd 空公钥")
 				rslt.IsOK = false
 				rslt.Msg = "Empty PubKey"
 			} else {
 				bs := cmd.Data.(string)
 				key, err := ecies.NewPublicKeyFromHex(bs)
 				if nil != err {
-					fmt.Println("FurisonTcpClient.onAuthorizeCmd 数据转公钥异常", err)
+					fmt.Println("EccTcpClient.onAuthorizeCmd 数据转公钥异常", err)
 					rslt.IsOK = false
 					rslt.Msg = err.Error()
 				} else {
@@ -251,7 +251,7 @@ func (tcp *FurisonTcpClient) onAuthorizeCmd(pacSN uint16, cmd *EccCmd) {
 
 	jstr, err := json.Marshal(rslt)
 	if nil != err {
-		fmt.Println("FurisonTcpClient.onAuthorizeCmd 结果转JSON异常", err)
+		fmt.Println("EccTcpClient.onAuthorizeCmd 结果转JSON异常", err)
 		return
 	}
 
@@ -263,7 +263,7 @@ func (tcp *FurisonTcpClient) onAuthorizeCmd(pacSN uint16, cmd *EccCmd) {
 }
 
 // 封装身份验证操作
-func (tcp *FurisonTcpClient) Login(host string, port int, username string, pwd string, msTimeOut int) bool {
+func (tcp *EccTcpClient) Login(host string, port int, username string, pwd string, msTimeOut int) bool {
 	isOk := false
 
 	defer func() {
@@ -282,7 +282,7 @@ func (tcp *FurisonTcpClient) Login(host string, port int, username string, pwd s
 	tmBegin := time.Now()
 
 	for time.Since(tmBegin) < tmDuration {
-		pac := tcp.readFurisonPackage(msTimeOut)
+		pac := tcp.readEccPackage(msTimeOut)
 		if nil == pac {
 			return false
 		}

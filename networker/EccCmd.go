@@ -13,9 +13,7 @@ const (
 	Cmd_GetPrivateKey
 	Cmd_GetUserNamePwd
 	Cmd_AuthorizeResult
-	// Cmd_Heartbeat
-	// Cmd_Table
-	// Cmd_SaveInOutImage
+	Cmd_Test
 )
 
 type EccCmd struct {
