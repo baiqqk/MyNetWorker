@@ -1,5 +1,7 @@
 # MyNetWorker
 Golang tcp and udp worker.</br>
+UdpServer.go is not encrypted.</br>
+EccTcpClient.go is encrypted with AES. AES's key is exchanged with ecc.</br>
 </br>
 tcpClientBase.go: Implement the most basic connection, disconnection, read, and write operations of TCP communication.</br>
 </br>
