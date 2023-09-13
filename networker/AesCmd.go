@@ -16,14 +16,14 @@ const (
 	Cmd_Test
 )
 
-type EccCmd struct {
+type AesCmd struct {
 	Cmd  int    `json:"cmd"`
 	Data any    `json:"data"`
 	IsOK bool   `json:"isok"`
 	Msg  string `json:"msg"`
 }
 
-func (cmd *EccCmd) ToJson() string {
+func (cmd *AesCmd) ToJson() string {
 	jdata, err := json.Marshal(cmd)
 	if nil != err {
 		fmt.Println("FurisonCmd.ToJson 异常", err)

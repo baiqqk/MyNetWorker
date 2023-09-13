@@ -63,19 +63,19 @@ func TcpDemo() {
 
 		if nil != c {
 			client = c
-			client.SetEccPackageHandler(clientPkgHandler)
+			client.SetAesPackageHandler(clientPkgHandler)
 		}
 	}
 	lsnr.Start(5868)
 
-	cli := networker.EccTcpClient{}
+	cli := networker.AesTcpClient{}
 	if !cli.Login("127.0.0.1", 5868, "admin", "admin", 3000) {
 		fmt.Println("Failed to uthorize")
 		return
 	}
 
 	go func() {
-		cmd := networker.EccCmd{
+		cmd := networker.AesCmd{
 			Cmd:  networker.Cmd_Test,
 			Data: nil,
 			IsOK: true,
@@ -99,12 +99,12 @@ func TcpDemo() {
 	}()
 }
 
-var client *networker.EccTcpClient
+var client *networker.AesTcpClient
 
-func clientPkgHandler(tcp *networker.EccTcpClient, pkg *networker.EccPackage) {
+func clientPkgHandler(tcp *networker.AesTcpClient, pkg *networker.AesPackage) {
 	fmt.Println("clientPkgHandler Received: SN=", pkg.PacSN, " JSON=", pkg.Json, "len(ExtData)=", len(pkg.ExtData))
 
-	cmd := networker.EccCmd{
+	cmd := networker.AesCmd{
 		Cmd:  networker.Cmd_Test,
 		Data: nil,
 		IsOK: true,

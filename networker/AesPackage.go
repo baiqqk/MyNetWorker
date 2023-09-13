@@ -6,14 +6,14 @@ import (
 	ecies "github.com/ecies/go/v2"
 )
 
-type EccPackage struct {
+type AesPackage struct {
 	PacSN       uint16
 	IsEncrypted bool
 	Json        string
 	ExtData     []byte
 }
 
-func (pkg *EccPackage) ToAesStream(aesKey []byte) []byte {
+func (pkg *AesPackage) ToAesStream(aesKey []byte) []byte {
 	//包格式：1字节标识位 + 2字节Json长度(小端结尾) + Json数据 + ExtData
 
 	jsonData := []byte(pkg.Json)
@@ -42,7 +42,7 @@ func (pkg *EccPackage) ToAesStream(aesKey []byte) []byte {
 	return bytesCombine2(flag, jsonData, pkg.ExtData)
 }
 
-func (pkg *EccPackage) ToEccStream(eccKey *ecies.PublicKey) []byte {
+func (pkg *AesPackage) ToEccStream(eccKey *ecies.PublicKey) []byte {
 	//包格式：1字节标识位 + 2字节Json长度(小端结尾) + Json数据 + ExtData
 
 	jsonData := []byte(pkg.Json)
@@ -71,10 +71,10 @@ func (pkg *EccPackage) ToEccStream(eccKey *ecies.PublicKey) []byte {
 	return bytesCombine2(flag, jsonData, pkg.ExtData)
 }
 
-func (pac *EccPackage) SetPacSN(val int) {
+func (pac *AesPackage) SetPacSN(val int) {
 	pac.PacSN = uint16(pac.PacSN)
 }
 
-func (pac *EccPackage) GetPacSN() int {
+func (pac *AesPackage) GetPacSN() int {
 	return int(pac.PacSN)
 }
