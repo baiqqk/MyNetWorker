@@ -329,3 +329,151 @@ func (tcp *EccTcpClient) Login(host string, port int, username string, pwd strin
 
 	return false
 }
+
+var OnAuthorize func(name string, pwd string) bool
+
+func AuthorizeConn(conn *net.Conn) *EccTcpClient {
+	var name, password string
+
+	ptc := NewEccTcpClientWithConn(conn)
+	fmt.Println("Received client:", (*conn).RemoteAddr())
+	ptc.StartWaitLoop()
+
+	cmd := EccCmd{IsOK: true}
+	cmd.Cmd = 1
+	cmd.Data = ptc.Ecc.EccKey.PublicKey.Hex(true)
+	jdata, _ := json.Marshal(cmd)
+	pkg := ptc.SendJsonAndWait(GetNexPacSN(), string(jdata), nil, 3000)
+	if nil == pkg {
+		fmt.Println("Failed to request public key")
+		ptc.Close()
+		return nil
+	}
+
+	fmt.Println("Received:", pkg.Json)
+	var cmdRslt EccCmd
+	err := json.Unmarshal([]byte(pkg.Json), &cmdRslt)
+	if nil != err {
+		fmt.Println("Failed to convert package to command", err)
+		ptc.Close()
+		return nil
+	}
+
+	key, err := ecies.NewPublicKeyFromHex(cmdRslt.Data.(string))
+	if nil != err {
+		fmt.Println("Failed to convert public key", err)
+		ptc.Close()
+		return nil
+	}
+
+	ptc.PubKey = key
+	fmt.Println("Public Key:", ptc.PubKey.Hex(true))
+
+	cmd.Cmd = Cmd_GetPrivateKey
+	cmd.Data = time.Now().Unix()
+	jdata, _ = json.Marshal(cmd)
+	pkg = ptc.SendJsonAndWait(GetNexPacSN(), string(jdata), nil, 3000)
+	if nil == pkg {
+		fmt.Println("failed to request private key")
+		ptc.Close()
+		return nil
+	}
+
+	fmt.Println("Received: ", pkg.Json)
+	err = json.Unmarshal([]byte(pkg.Json), &cmdRslt)
+	if nil != err {
+		fmt.Println("Failed to convert package to command", err)
+		ptc.Close()
+		return nil
+	}
+	if nil == cmdRslt.Data {
+		fmt.Println("Empty private key", err)
+		ptc.Close()
+		return nil
+	}
+	tmpKey, err := hex.DecodeString(cmdRslt.Data.(string))
+	if nil != err {
+		fmt.Println("Failed to convert private key", err)
+		ptc.Close()
+		return nil
+	}
+	ptc.EncryptKey = tmpKey
+
+	rslt := EccCmd{IsOK: false}
+	rslt.Cmd = Cmd_AuthorizeResult
+	for idx := 0; idx < 1; idx++ {
+		//请求用户名密码
+		cmd.Cmd = Cmd_GetUserNamePwd
+		cmd.Data = time.Now().Unix()
+		jdata, _ = json.Marshal(cmd)
+		pkg = ptc.SendJsonAndWait(GetNexPacSN(), string(jdata), nil, 3000)
+		if nil == pkg {
+			fmt.Println("Failed to request name and password")
+			ptc.Close()
+			return nil
+		}
+
+		fmt.Println("Received: ", pkg.Json)
+		err = json.Unmarshal([]byte(pkg.Json), &cmdRslt)
+		if nil != err {
+			fmt.Println("Failed to convert package to command", err)
+			ptc.Close()
+			return nil
+		}
+
+		if nil == cmdRslt.Data {
+			rslt.IsOK = false
+			rslt.Msg = "Empty data field"
+			break
+		}
+
+		dic, ok := cmdRslt.Data.(map[string]any)
+		if !ok {
+			rslt.IsOK = false
+			rslt.Msg = "Data field is not an object"
+			break
+		}
+		obj, has := dic["name"]
+		if !has {
+			rslt.IsOK = false
+			rslt.Msg = "No name field"
+			break
+		}
+		if nil == obj || len(obj.(string)) <= 0 {
+			rslt.IsOK = false
+			rslt.Msg = "Empty name"
+			break
+		}
+		name = obj.(string)
+		obj, has = dic["pwd"]
+		if !has {
+			rslt.IsOK = false
+			rslt.Msg = "No password field"
+			break
+		}
+		password = obj.(string)
+
+		//Check UserName and Password here
+		if nil == OnAuthorize || !OnAuthorize(name, password) {
+			rslt.IsOK = false
+			rslt.Msg = "name or password is not correct"
+			break
+		}
+
+		rslt.IsOK = true
+	}
+
+	//发送认证结果
+	jdata, _ = json.Marshal(rslt)
+	ptc.SendJson(GetNexPacSN(), string(jdata), nil)
+
+	if rslt.IsOK {
+		ptc.User = &LoginUserInfo{ID: 0, Name: name}
+		fmt.Println("Authorize OK")
+		return ptc
+	} else {
+		fmt.Println("Failed to authorize:", rslt.Msg)
+		ptc.Close()
+		return nil
+	}
+}
