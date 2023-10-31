@@ -50,14 +50,13 @@ func UdpDemo() {
 func TcpDemo() {
 	//username and password is admin for this demo
 
-	networker.OnAuthorize = func(name, pwd string) bool {
+	lsnr := networker.TcpListener{}
+	lsnr.OnAuthorize = func(name, pwd string) bool {
 		return name == "admin" && pwd == "admin"
 	}
-
-	lsnr := networker.TcpListener{}
 	lsnr.OnClientAccepted = func(conn *net.Conn) {
 		tmBegin := time.Now()
-		c := networker.AuthorizeConn(conn)
+		c := networker.AuthorizeConn(&lsnr, conn)
 
 		fmt.Println(time.Now(), "Authorize cost time:", time.Since(tmBegin))
 

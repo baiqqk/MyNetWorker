@@ -329,9 +329,7 @@ func (tcp *AesTcpClient) Login(host string, port int, username string, pwd strin
 	return false
 }
 
-var OnAuthorize func(name string, pwd string) bool
-
-func AuthorizeConn(conn *net.Conn) *AesTcpClient {
+func AuthorizeConn(lsn *TcpListener, conn *net.Conn) *AesTcpClient {
 	var name, password string
 
 	ptc := NewAesTcpClientWithConn(conn)
@@ -449,7 +447,7 @@ func AuthorizeConn(conn *net.Conn) *AesTcpClient {
 		password = obj.(string)
 
 		//Check UserName and Password here
-		if nil == OnAuthorize || !OnAuthorize(name, password) {
+		if nil == lsn || nil == lsn.OnAuthorize || !lsn.OnAuthorize(name, password) {
 			rslt.IsOK = false
 			rslt.Msg = "name or password is not correct"
 			break

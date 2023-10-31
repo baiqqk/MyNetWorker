@@ -9,6 +9,7 @@ import (
 type TcpListener struct {
 	lsener           *net.Listener
 	OnClientAccepted func(*net.Conn)
+	OnAuthorize      func(name string, pwd string) bool
 }
 
 func (lsnr *TcpListener) Start(port int) bool {
