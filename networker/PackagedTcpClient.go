@@ -23,7 +23,7 @@ type PackagedTcpClient struct {
 	answer   map[uint16]*Package
 
 	readPacChan  chan bool
-	OnOnePackage func(tcp *PackagedTcpClient, pacSN uint16, data []byte)
+	OnOnePackage func(tcp *PackagedTcpClient, pacSN uint16, cmd uint16, data []byte)
 }
 
 func NewClient(conn *net.Conn) *PackagedTcpClient {
@@ -66,23 +66,23 @@ func (tcp *PackagedTcpClient) StartWaitLoop() {
 	go tcp.waitLoop()
 }
 
-func (tcp *PackagedTcpClient) SendJava(pacSN int, data []byte) bool {
-	return tcp.Send(uint16(pacSN), data)
+func (tcp *PackagedTcpClient) SendJava(pacSN int, cmd int, data []byte) bool {
+	return tcp.Send(uint16(pacSN), uint16(cmd), data)
 }
 
-func (tcp *PackagedTcpClient) Send(pacSN uint16, data []byte) bool {
-	stream := PacStream(pacSN, data)
+func (tcp *PackagedTcpClient) Send(pacSN uint16, cmd uint16, data []byte) bool {
+	stream := PacStream(pacSN, cmd, data)
 
 	count := tcp.Write(stream)
 
 	return count == len(stream)
 }
 
-func (tcp *PackagedTcpClient) SendAndWaitJava(pacSN int, data []byte, msWait int) *Package {
-	return tcp.SendAndWait(uint16(pacSN), data, msWait)
+func (tcp *PackagedTcpClient) SendAndWaitJava(pacSN int, cmd int, data []byte, msWait int) *Package {
+	return tcp.SendAndWait(uint16(pacSN), uint16(cmd), data, msWait)
 }
 
-func (tcp *PackagedTcpClient) SendAndWait(pacSN uint16, data []byte, msWait int) *Package {
+func (tcp *PackagedTcpClient) SendAndWait(pacSN uint16, cmd uint16, data []byte, msWait int) *Package {
 	has := false
 	ch := make(chan bool)
 	ansSN := uint16(0x8000 | pacSN)
@@ -121,7 +121,7 @@ func (tcp *PackagedTcpClient) SendAndWait(pacSN uint16, data []byte, msWait int)
 	tcp.waitLock.Unlock()
 
 	//发送指令数据
-	tcp.Send(pacSN, data)
+	tcp.Send(pacSN, cmd, data)
 
 	var pac *Package
 
@@ -160,6 +160,7 @@ func (tcp *PackagedTcpClient) waitLoop() {
 	}
 
 	var pacSN uint16
+	var cmd uint16
 	var dataLen uint32
 	var data []byte
 	var err error
@@ -236,6 +237,21 @@ func (tcp *PackagedTcpClient) waitLoop() {
 		pacSN = uint16(buf[0]) << 8
 		pacSN |= uint16(buf[1])
 
+		//读cmd
+		err = tcp.ReadData(2, buf)
+		if nil != err {
+			fmt.Println("PackagedTcpClient.waitLoop 读cmd异常", err)
+
+			if strings.Contains(err.Error(), "EOF") {
+				tcp.Close()
+				tcp.readPacChan <- true
+				return
+			}
+			continue
+		}
+		cmd = uint16(buf[0]) << 8
+		cmd |= uint16(buf[1])
+
 		//读dataLen
 		err = tcp.ReadData(4, buf)
 		if nil != err {
@@ -267,7 +283,7 @@ func (tcp *PackagedTcpClient) waitLoop() {
 			continue
 		}
 
-		pac := Package{PacSN: pacSN, Data: data}
+		pac := Package{PacSN: pacSN, Data: data, Cmd: cmd}
 
 		//回复包保存到结果字典中
 		isWaitPac := false
@@ -338,7 +354,7 @@ func (tcp *PackagedTcpClient) invokePackageWorker() {
 		pac := el.Value.(*Package)
 
 		if nil != tcp.OnOnePackage {
-			tcp.OnOnePackage(tcp, pac.PacSN, pac.Data)
+			tcp.OnOnePackage(tcp, pac.PacSN, pac.Cmd, pac.Data)
 		}
 	}
 

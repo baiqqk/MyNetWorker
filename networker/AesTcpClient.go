@@ -47,21 +47,21 @@ func (tcp *AesTcpClient) initVar() {
 	}
 }
 
-func (tcp *AesTcpClient) onePackageHandler(client *PackagedTcpClient, pacSN uint16, data []byte) {
-	tcp.onOneAesPackage(tcp.pkg2AesPkg(pacSN, data))
+func (tcp *AesTcpClient) onePackageHandler(client *PackagedTcpClient, pacSN uint16, cmd uint16, data []byte) {
+	tcp.onOneAesPackage(tcp.pkg2AesPkg(pacSN, cmd, data))
 }
 
 func (tcp *AesTcpClient) onOneAesPackage(pkg *AesPackage) {
 	//非回复包的认证和心跳包处理
 	if pkg.PacSN&0x8000 <= 0 {
-		var cmd AesCmd
-		err := json.Unmarshal([]byte(pkg.Json), &cmd)
-		if nil != err {
-			fmt.Println("EccTcpClient.onOneEccPackage json转对象异常", err)
-		} else {
-			switch cmd.Cmd {
-			case 1, 2:
-				tcp.onAuthorizeCmd(pkg.PacSN, &cmd)
+		switch pkg.Cmd {
+		case Cmd_GetPubKey, Cmd_GetPrivateKey:
+			var cmd AesCmd
+			err := json.Unmarshal([]byte(pkg.Json), &cmd)
+			if nil != err {
+				fmt.Println("EccTcpClient.onOneEccPackage json转对象异常", err)
+			} else {
+				tcp.onAuthorizeCmd(pkg.PacSN, pkg.Cmd, &cmd)
 			}
 		}
 	}
@@ -73,12 +73,13 @@ func (tcp *AesTcpClient) onOneAesPackage(pkg *AesPackage) {
 	tcp.onAesPackage(tcp, pkg)
 }
 
-func (tcp *AesTcpClient) pkg2AesPkg(pacSN uint16, data []byte) *AesPackage {
+func (tcp *AesTcpClient) pkg2AesPkg(pacSN uint16, cmd uint16, data []byte) *AesPackage {
 	jsonLen := (uint16(data[1]) << 8)
 	jsonLen |= uint16(data[2])
 
 	ansPkg := AesPackage{}
 	ansPkg.PacSN = pacSN
+	ansPkg.Cmd = cmd
 	ansPkg.IsEncrypted = (0x01 & data[0]) > 0
 	ansPkg.ExtData = data[3+jsonLen:]
 
@@ -135,26 +136,26 @@ func (tcp *AesTcpClient) Pac2Stream(pkg *AesPackage) []byte {
 	return data
 }
 
-func (tcp *AesTcpClient) SendJson(sn uint16, json string, extData []byte) bool {
+func (tcp *AesTcpClient) SendJson(sn uint16, cmd uint16, json string, extData []byte) bool {
 	pkg := AesPackage{}
 	pkg.ExtData = extData
 	pkg.Json = json
 	pkg.PacSN = sn
 
-	return tcp.Send(sn, tcp.Pac2Stream(&pkg))
+	return tcp.Send(sn, cmd, tcp.Pac2Stream(&pkg))
 }
 
-func (tcp *AesTcpClient) SendJsonJava(sn int, json string, extData []byte) bool {
-	return tcp.SendJson(uint16(sn), json, extData)
+func (tcp *AesTcpClient) SendJsonJava(sn int, cmd int, json string, extData []byte) bool {
+	return tcp.SendJson(uint16(sn), uint16(cmd), json, extData)
 }
 
-func (tcp *AesTcpClient) SendJsonAndWait(sn uint16, json string, extData []byte, msWait int) *AesPackage {
+func (tcp *AesTcpClient) SendJsonAndWait(sn uint16, cmd uint16, json string, extData []byte, msWait int) *AesPackage {
 	pkg := AesPackage{}
 	pkg.ExtData = extData
 	pkg.Json = json
 	pkg.PacSN = sn
 
-	ans := tcp.SendAndWait(sn, tcp.Pac2Stream(&pkg), msWait)
+	ans := tcp.SendAndWait(sn, cmd, tcp.Pac2Stream(&pkg), msWait)
 	if nil == ans {
 		fmt.Println("EccTcpServer.SendJsonAndWait PacSN=", sn, " 没有收到回复 PacSN=")
 		return nil
@@ -163,13 +164,13 @@ func (tcp *AesTcpClient) SendJsonAndWait(sn uint16, json string, extData []byte,
 	jsonLen := (uint16(ans.Data[1]) << 8)
 	jsonLen |= uint16(ans.Data[2])
 
-	ansPkg := tcp.pkg2AesPkg(sn, ans.Data)
+	ansPkg := tcp.pkg2AesPkg(sn, cmd, ans.Data)
 
 	return ansPkg
 }
 
-func (tcp *AesTcpClient) SendJsonAndWaitJava(sn int, json string, extData []byte, msWait int) *AesPackage {
-	return tcp.SendJsonAndWait(uint16(sn), json, extData, msWait)
+func (tcp *AesTcpClient) SendJsonAndWaitJava(sn int, cmd int, json string, extData []byte, msWait int) *AesPackage {
+	return tcp.SendJsonAndWait(uint16(sn), uint16(cmd), json, extData, msWait)
 }
 
 func (tcp *AesTcpClient) ReadAesPackage() *AesPackage {
@@ -183,35 +184,34 @@ func (tcp *AesTcpClient) readAesPackage(msTimeOut int) *AesPackage {
 		return nil
 	}
 
-	fuPkg := tcp.pkg2AesPkg(pkg.PacSN, pkg.Data)
+	aesPkg := tcp.pkg2AesPkg(pkg.PacSN, pkg.Cmd, pkg.Data)
 
 	//非回复包的认证和心跳包处理
 	if pkg.PacSN&0x8000 <= 0 {
-		var cmd AesCmd
-		err := json.Unmarshal([]byte(fuPkg.Json), &cmd)
-		if nil != err {
-			fmt.Println("EccTcpClient.ReadEccPackage json转对象异常", err)
-		} else {
-			switch cmd.Cmd {
-			case 1, 2:
-				tcp.onAuthorizeCmd(fuPkg.PacSN, &cmd)
+		switch aesPkg.Cmd {
+		case Cmd_GetPubKey, Cmd_GetPrivateKey:
+			var cmd AesCmd
+			err := json.Unmarshal([]byte(aesPkg.Json), &cmd)
+			if nil != err {
+				fmt.Println("EccTcpClient.ReadEccPackage json转对象异常", err)
+			} else {
+				tcp.onAuthorizeCmd(aesPkg.PacSN, aesPkg.Cmd, &cmd)
 			}
 		}
 	}
 
-	return fuPkg
+	return aesPkg
 }
 
-func (tcp *AesTcpClient) onAuthorizeCmd(pacSN uint16, cmd *AesCmd) {
+func (tcp *AesTcpClient) onAuthorizeCmd(pacSN uint16, cmdType uint16, cmd *AesCmd) {
 	tcp.initVar()
 
 	var newKey []byte
 	newKey = nil
 
 	rslt := AesCmd{}
-	rslt.Cmd = cmd.Cmd
 
-	switch cmd.Cmd {
+	switch cmdType {
 	case Cmd_GetPubKey:
 		{
 			if nil == cmd.Data || len(cmd.Data.(string)) <= 0 {
@@ -255,7 +255,7 @@ func (tcp *AesTcpClient) onAuthorizeCmd(pacSN uint16, cmd *AesCmd) {
 		return
 	}
 
-	tcp.SendJson(0x8000|pacSN, string(jstr), nil)
+	tcp.SendJson(0x8000|pacSN, cmdType, string(jstr), nil)
 
 	if nil != newKey {
 		tcp.EncryptKey = newKey
@@ -287,21 +287,13 @@ func (tcp *AesTcpClient) Login(host string, port int, username string, pwd strin
 			return false
 		}
 
-		fmt.Println("接收到数据 PacSN=", pac.PacSN, "Json=", string(pac.Json), "data=", pac.ExtData)
+		fmt.Println("接收到数据 PacSN=", pac.PacSN, " Cmd=", pac.Cmd, " Json=", string(pac.Json), " data=", pac.ExtData)
 		// client.SendJson()
 
-		cmd := AesCmd{}
-		err := json.Unmarshal([]byte(pac.Json), &cmd)
-		if nil != err {
-			fmt.Println("Json 转 Cmd 失败", err)
-			continue
-		}
-
-		switch cmd.Cmd {
+		switch pac.Cmd {
 		case Cmd_GetUserNamePwd:
 			{
 				ans := AesCmd{}
-				ans.Cmd = cmd.Cmd
 				ans.IsOK = true
 				ans.Msg = ""
 				ans.Data = struct {
@@ -311,10 +303,17 @@ func (tcp *AesTcpClient) Login(host string, port int, username string, pwd strin
 					Name: username,
 					Pwd:  pwd}
 
-				tcp.SendJson(0x8000|pac.PacSN, ans.ToJson(), nil)
+				tcp.SendJson(0x8000|pac.PacSN, pac.Cmd, ans.ToJson(), nil)
 			}
 		case Cmd_AuthorizeResult:
 			{
+				cmd := AesCmd{}
+				err := json.Unmarshal([]byte(pac.Json), &cmd)
+				if nil != err {
+					fmt.Println("Json 转 Cmd 失败", err)
+					continue
+				}
+
 				if cmd.IsOK {
 					isOk = true
 					fmt.Println("身份认证成功")
@@ -340,10 +339,9 @@ func AuthorizeConn(conn *net.Conn) *AesTcpClient {
 	ptc.StartWaitLoop()
 
 	cmd := AesCmd{IsOK: true}
-	cmd.Cmd = 1
 	cmd.Data = ptc.Ecc.EccKey.PublicKey.Hex(true)
 	jdata, _ := json.Marshal(cmd)
-	pkg := ptc.SendJsonAndWait(GetNexPacSN(), string(jdata), nil, 3000)
+	pkg := ptc.SendJsonAndWait(GetNexPacSN(), Cmd_GetPubKey, string(jdata), nil, 3000)
 	if nil == pkg {
 		fmt.Println("Failed to request public key")
 		ptc.Close()
@@ -369,10 +367,9 @@ func AuthorizeConn(conn *net.Conn) *AesTcpClient {
 	ptc.PubKey = key
 	fmt.Println("Public Key:", ptc.PubKey.Hex(true))
 
-	cmd.Cmd = Cmd_GetPrivateKey
 	cmd.Data = time.Now().Unix()
 	jdata, _ = json.Marshal(cmd)
-	pkg = ptc.SendJsonAndWait(GetNexPacSN(), string(jdata), nil, 3000)
+	pkg = ptc.SendJsonAndWait(GetNexPacSN(), Cmd_GetPrivateKey, string(jdata), nil, 3000)
 	if nil == pkg {
 		fmt.Println("failed to request private key")
 		ptc.Close()
@@ -400,13 +397,11 @@ func AuthorizeConn(conn *net.Conn) *AesTcpClient {
 	ptc.EncryptKey = tmpKey
 
 	rslt := AesCmd{IsOK: false}
-	rslt.Cmd = Cmd_AuthorizeResult
 	for idx := 0; idx < 1; idx++ {
 		//请求用户名密码
-		cmd.Cmd = Cmd_GetUserNamePwd
 		cmd.Data = time.Now().Unix()
 		jdata, _ = json.Marshal(cmd)
-		pkg = ptc.SendJsonAndWait(GetNexPacSN(), string(jdata), nil, 3000)
+		pkg = ptc.SendJsonAndWait(GetNexPacSN(), Cmd_GetUserNamePwd, string(jdata), nil, 3000)
 		if nil == pkg {
 			fmt.Println("Failed to request name and password")
 			ptc.Close()
@@ -465,7 +460,7 @@ func AuthorizeConn(conn *net.Conn) *AesTcpClient {
 
 	//发送认证结果
 	jdata, _ = json.Marshal(rslt)
-	ptc.SendJson(GetNexPacSN(), string(jdata), nil)
+	ptc.SendJson(GetNexPacSN(), Cmd_AuthorizeResult, string(jdata), nil)
 
 	if rslt.IsOK {
 		ptc.User = &LoginUserInfo{ID: 0, Name: name}

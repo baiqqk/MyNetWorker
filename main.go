@@ -70,13 +70,12 @@ func TcpDemo() {
 
 	cli := networker.AesTcpClient{}
 	if !cli.Login("127.0.0.1", 5868, "admin", "admin", 3000) {
-		fmt.Println("Failed to uthorize")
+		fmt.Println("Failed to authorize")
 		return
 	}
 
 	go func() {
 		cmd := networker.AesCmd{
-			Cmd:  networker.Cmd_Test,
 			Data: nil,
 			IsOK: true,
 			Msg:  "Now is " + time.Now().Format("15:04:05"),
@@ -89,7 +88,7 @@ func TcpDemo() {
 				fmt.Println(err)
 			}
 
-			pac := cli.SendJsonAndWait(networker.GetNexPacSN(), string(jstr), nil, 3000)
+			pac := cli.SendJsonAndWait(networker.GetNexPacSN(), networker.Cmd_Test, string(jstr), nil, 3000)
 			if nil != pac {
 				fmt.Println("cli got answer: ", string(pac.Json))
 			}
@@ -102,10 +101,9 @@ func TcpDemo() {
 var client *networker.AesTcpClient
 
 func clientPkgHandler(tcp *networker.AesTcpClient, pkg *networker.AesPackage) {
-	fmt.Println("clientPkgHandler Received: SN=", pkg.PacSN, " JSON=", pkg.Json, "len(ExtData)=", len(pkg.ExtData))
+	fmt.Println("clientPkgHandler Received: SN=", pkg.PacSN, " JSON=", pkg.Json, " Cmd=", pkg.Cmd, "len(ExtData)=", len(pkg.ExtData))
 
 	cmd := networker.AesCmd{
-		Cmd:  networker.Cmd_Test,
 		Data: nil,
 		IsOK: true,
 		Msg:  "eccclient got " + pkg.Json,
@@ -116,5 +114,5 @@ func clientPkgHandler(tcp *networker.AesTcpClient, pkg *networker.AesPackage) {
 		fmt.Println(err)
 	}
 
-	tcp.SendJson(0x8000|pkg.PacSN, string(jstr), nil)
+	tcp.SendJson(0x8000|pkg.PacSN, networker.Cmd_Test, string(jstr), nil)
 }

@@ -8,6 +8,7 @@ import (
 
 type AesPackage struct {
 	PacSN       uint16
+	Cmd         uint16
 	IsEncrypted bool
 	Json        string
 	ExtData     []byte
@@ -72,7 +73,7 @@ func (pkg *AesPackage) ToEccStream(eccKey *ecies.PublicKey) []byte {
 }
 
 func (pac *AesPackage) SetPacSN(val int) {
-	pac.PacSN = uint16(pac.PacSN)
+	pac.PacSN = uint16(val)
 }
 
 func (pac *AesPackage) GetPacSN() int {
