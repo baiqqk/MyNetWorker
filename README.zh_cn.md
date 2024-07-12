@@ -3,12 +3,14 @@
 
 [简体中文](./README.zh_cn.md) 
 
----
 # Golang TCP 和 UDP 通讯类. 
+
 Golang 封装TCP和UDP通讯。 
----
+
 ## TCP通讯类 
+
 TCP通讯类主要解决TCP长连接通讯中以下问题： 
+
 + 通讯安全问题 
     - 明文传输或固定密钥传输导致的数据泄漏
 + CPU占用高，传输效率低 
