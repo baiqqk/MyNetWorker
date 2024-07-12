@@ -1,7 +1,7 @@
 # README
-[简体中文](./README.zh_cn.md) 
+[简体中文](README.zh_cn.md) 
 
-[English](./README.md) 
+[English](README.md) 
 
 # MyNetWorker
 Golang tcp and udp worker.</br>

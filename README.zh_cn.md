@@ -1,7 +1,7 @@
 # README 
-[English](./README.md) 
+[English](README.md) 
 
-[简体中文](./README.zh_cn.md) 
+[简体中文](README.zh_cn.md) 
 
 # Golang TCP 和 UDP 通讯类. 
 
