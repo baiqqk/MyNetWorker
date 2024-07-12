@@ -1,3 +1,8 @@
+# README
+[简体中文](./README.zh_cn.md) 
+
+[English](./README.md) 
+
 # MyNetWorker
 Golang tcp and udp worker.</br>
 UdpServer.go is not encrypted.You can encrypt udp data with Aes.go by your self.</br>
