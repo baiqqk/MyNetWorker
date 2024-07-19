@@ -46,49 +46,49 @@ TCP通讯安全问题主要有两点：明文传输导致的数据泄漏；固�
 var client *networker.AesTcpClient 
 
 func main() { 
-    //创建服务端 
+	//创建服务端 
 	lsnr := networker.TcpListener{} 
 
-    //指定服务端身份认证方法 
+	//指定服务端身份认证方法 
 	lsnr.OnAuthorize = func(name, pwd string) bool { 
 		return name == "admin" && pwd == "admin" 
 	} 
 
-    //服务端接收到客户端后的处理方法 
+	//服务端接收到客户端后的处理方法 
 	lsnr.OnClientAccepted = func(conn *net.Conn) { 
 		tmBegin := time.Now() 
 
-        //networker.AuthorizeConn 方法中封装了密钥交换、回调身份认证方法的操作 
+		//networker.AuthorizeConn 方法中封装了密钥交换、回调身份认证方法的操作 
 		aesClient := networker.AuthorizeConn(&lsnr, conn) 
 
 		fmt.Println(time.Now(), "Authorize cost time:", time.Since(tmBegin)) 
 
-        //认证成功不为nil 
+		//认证成功不为nil 
 		if nil != aesClient { 
 			client = aesClient 
 
-            //设置客户端请求处理方法 
+			//设置客户端请求处理方法 
 			client.SetAesPackageHandler(func (tcp *networker.AesTcpClient, pkg *networker.AesPackage) { 
-                fmt.Println("clientPkgHandler Received: SN=", pkg.PacSN, " JSON=", pkg.Json, " Cmd=", pkg.Cmd, "len(ExtData)=", len(pkg.ExtData)) 
+				fmt.Println("clientPkgHandler Received: SN=", pkg.PacSN, " JSON=", pkg.Json, " Cmd=", pkg.Cmd, "len(ExtData)=", len(pkg.ExtData)) 
 
-                cmd := networker.AesCmd{ 
-                    Data: nil, 
-                    IsOK: true, 
-                    Msg:  "eccclient got " + pkg.Json, 
-                } 
+				cmd := networker.AesCmd{ 
+					Data: nil, 
+					IsOK: true, 
+					Msg:  "eccclient got " + pkg.Json, 
+				} 
 
-                jstr, err := json.Marshal(cmd) 
-                if nil != err { 
-                    fmt.Println(err) 
-                } 
+				jstr, err := json.Marshal(cmd) 
+				if nil != err { 
+					fmt.Println(err) 
+				} 
 
-                //回复请求。必须将PacSN最高位置1才能匹配为客户端的请求结果，否则客户端按服务端请求处理。
-                tcp.SendJson(0x8000|pkg.PacSN, networker.Cmd_Test, string(jstr), nil) 
-            }) 
+				//回复请求。必须将PacSN最高位置1才能匹配为客户端的请求结果，否则客户端按服务端请求处理。
+				tcp.SendJson(0x8000|pkg.PacSN, networker.Cmd_Test, string(jstr), nil) 
+			}) 
 		} 
 	} 
 
-    //启动侦听指定端口 
+	//启动侦听指定端口 
 	lsnr.Start(5868) 
 } 
 ``` 
@@ -97,17 +97,17 @@ func main() {
 
 ``` golang 
 func main() { 
-    //创建 AesTcpClient
+	//创建 AesTcpClient
 	cli := networker.AesTcpClient{}
 
-    //连接服务端请求认证
+	//连接服务端请求认证
 	if !cli.Login("127.0.0.1", 5868, "admin", "admin", 3000) {
 		fmt.Println("Failed to authorize")
 		return
 	}
 
 	go func() {
-        //新建请求命令对象
+		//新建请求命令对象
 		cmd := networker.AesCmd{
 			Data: nil,
 			IsOK: true,
@@ -115,14 +115,14 @@ func main() {
 		}
 
 		for {
-            //命令对象序列化
+			//命令对象序列化
 			cmd.Msg = "Now is " + time.Now().Format("15:04:05")
 			jstr, err := json.Marshal(cmd)
 			if nil != err {
 				fmt.Println(err)
 			}
 
-            //发送请求命令并等待结果
+			//发送请求命令并等待结果
 			pac := cli.SendJsonAndWait(networker.GetNexPacSN(), networker.Cmd_Test, string(jstr), nil, 3000)
 			if nil != pac {
 				fmt.Println("cli got answer: ", string(pac.Json))
