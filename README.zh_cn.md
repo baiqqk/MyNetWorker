@@ -95,6 +95,10 @@ func main() {
 
 	//启动侦听指定端口 
 	lsnr.Start(5868) 
+
+	for {
+		time.Sleep(time.Second)
+	}
 } 
 ``` 
 
@@ -136,6 +140,10 @@ func main() {
 			time.Sleep(time.Second * 3)
 		}
 	}()
+
+	for {
+		time.Sleep(time.Second)
+	}
 }
 ``` 
 
