@@ -95,7 +95,11 @@ func main() {
 	} 
 
 	// Start listening on the specified port 
-	lsnr.Start(5868) 
+	lsnr.Start(5868)
+
+	for {
+		time.Sleep(time.Second)
+	}
 } 
 ``` 
 
@@ -137,6 +141,10 @@ func main() {
 			time.Sleep(time.Second * 3)
 		}
 	}()
+
+	for {
+		time.Sleep(time.Second)
+	}
 }
 ``` 
 
