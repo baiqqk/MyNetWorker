@@ -154,13 +154,13 @@ func main() {
  内存: 16G DDR3 1333 
 
 1. 单客户端 
- ![](./thread1.png "单客户端效率") 
+ ![image](./thread1.png "单客户端效率") 
 
 1. 8客户端 
- ![](./thread8.png "8客户端效率") 
+ ![image](./thread8.png "8客户端效率") 
 
 1. 15客户端 
- ![](./thread15.png "15客户端效率") 
+ ![image](./thread15.png "15客户端效率") 
 
 
 ## UDP通讯类

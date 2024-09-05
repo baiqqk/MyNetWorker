@@ -155,13 +155,13 @@ func main() {
  Memory: 16G DDR3 1333 
 
 1. Single Client 
- ![](./thread1.png "Single Client") 
+ ![image](./thread1.png "Single Client") 
 
 1. 8 Clients 
- ![](./thread8.png "8 Clients") 
+ ![image](./thread8.png "8 Clients") 
 
 1. 15 Clients 
- ![](./thread15.png "15 Clients") 
+ ![image](./thread15.png "15 Clients") 
 
 ## UDP communication classes
 
