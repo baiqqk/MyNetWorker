@@ -139,6 +139,22 @@ func main() {
 }
 ``` 
 
+### 吞吐量 
+测试环境： 
+ 系统: Open SUSE leap 15.5 x64 
+ CPU: Intel E5-2650 v2 
+ 内存: 16G DDR3 1333 
+
+1. 单客户端 
+ ![](thread1.png "单客户端效率") 
+
+1. 8客户端 
+ ![](thread8.png "8客户端效率") 
+
+1. 15客户端 
+ ![](thread15.png "15客户端效率") 
+
+
 ## UDP通讯类
 
 UDP通讯类封装了最基本的收发操作。通讯内容明文传输。具体用法参考 main.go 中的 UdpDemo 代码。

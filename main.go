@@ -1,17 +1,17 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"main/networker"
 	"net"
+	"sync"
 	"time"
 )
 
 //打包aar命令: gomobile bind -target=android .
 
 func main() {
-	UdpDemo()
+	// UdpDemo()
 	TcpDemo()
 
 	for {
@@ -48,11 +48,27 @@ func UdpDemo() {
 }
 
 func TcpDemo() {
-	//username and password is admin for this demo
 
+	tcpSvr()
+	tcpCli()
+
+	for {
+		time.Sleep(time.Second)
+	}
+
+}
+
+var clients []*networker.AesTcpClient
+
+var cntLck sync.Mutex
+var totalPacTransted uint64 = 0
+var PacPerSec int = 0
+var secCount uint64 = 0
+
+func tcpSvr() {
 	lsnr := networker.TcpListener{}
 	lsnr.OnAuthorize = func(name, pwd string) bool {
-		return name == "admin" && pwd == "admin"
+		return name == "admin" && pwd == "admin" //username and password is admin for this demo
 	}
 	lsnr.OnClientAccepted = func(conn *net.Conn) {
 		tmBegin := time.Now()
@@ -61,11 +77,44 @@ func TcpDemo() {
 		fmt.Println(time.Now(), "Authorize cost time:", time.Since(tmBegin))
 
 		if nil != c {
-			client = c
-			client.SetAesPackageHandler(clientPkgHandler)
+			clients = append(clients, c)
+			c.SetAesPackageHandler(func(tcp *networker.AesTcpClient, pkg *networker.AesPackage) {
+				cntLck.Lock()
+				totalPacTransted++
+				PacPerSec++
+				cntLck.Unlock()
+
+				tcp.SendJson(0x8000|pkg.PacSN, networker.Cmd_Test, pkg.Json, nil)
+			})
+
+			c.OnClosed = func() {
+				for i := len(clients) - 1; i >= 0; i-- {
+					if !clients[i].IsConnected() {
+						arr := clients[:i]
+						if i != len(clients)-1 {
+							arr = append(arr, clients[i+1:]...)
+						}
+						clients = arr[:]
+					}
+				}
+			}
 		}
 	}
 	lsnr.Start(5868)
+
+	go func() {
+		for {
+			time.Sleep(time.Second)
+			secCount++
+
+			fmt.Printf("ClientCount: %d RT-Rate: %d Avg-Rate: %d\n", len(clients), PacPerSec, totalPacTransted/secCount)
+			PacPerSec = 0
+		}
+	}()
+
+}
+
+func tcpCli() {
 
 	cli := networker.AesTcpClient{}
 	if !cli.Login("127.0.0.1", 5868, "admin", "admin", 3000) {
@@ -73,45 +122,38 @@ func TcpDemo() {
 		return
 	}
 
+	jstr := "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+		"012345678901234567890123"
+
+	// cmd := networker.AesCmd{
+	// 	Data: nil,
+	// 	IsOK: true,
+	// 	Msg:  jstr,
+	// }
+
+	// jdata, err := json.Marshal(cmd)
+	// if nil != err {
+	// 	fmt.Println(err)
+	// }
+
+	// jstr = string(jdata)
+
+	cli.SetAesPackageHandler(func(tcp *networker.AesTcpClient, pkg *networker.AesPackage) {
+		// fmt.Println(pkg.Json)
+	})
+
 	go func() {
-		cmd := networker.AesCmd{
-			Data: nil,
-			IsOK: true,
-			Msg:  "Now is " + time.Now().Format("15:04:05"),
-		}
-
 		for {
-			cmd.Msg = "Now is " + time.Now().Format("15:04:05")
-			jstr, err := json.Marshal(cmd)
-			if nil != err {
-				fmt.Println(err)
-			}
-
-			pac := cli.SendJsonAndWait(networker.GetNexPacSN(), networker.Cmd_Test, string(jstr), nil, 3000)
-			if nil != pac {
-				fmt.Println("cli got answer: ", string(pac.Json))
-			}
-
-			time.Sleep(time.Second * 3)
+			cli.SendJson(cli.GetNexPacSN(), networker.Cmd_Test, jstr, nil)
 		}
 	}()
-}
-
-var client *networker.AesTcpClient
-
-func clientPkgHandler(tcp *networker.AesTcpClient, pkg *networker.AesPackage) {
-	fmt.Println("clientPkgHandler Received: SN=", pkg.PacSN, " JSON=", pkg.Json, " Cmd=", pkg.Cmd, "len(ExtData)=", len(pkg.ExtData))
-
-	cmd := networker.AesCmd{
-		Data: nil,
-		IsOK: true,
-		Msg:  "eccclient got " + pkg.Json,
-	}
-
-	jstr, err := json.Marshal(cmd)
-	if nil != err {
-		fmt.Println(err)
-	}
-
-	tcp.SendJson(0x8000|pkg.PacSN, networker.Cmd_Test, string(jstr), nil)
 }

@@ -140,6 +140,21 @@ func main() {
 }
 ``` 
 
+### Throughput 
+ System： 
+     OS: Open SUSE leap 15.5 x64 
+    CPU: Intel E5-2650 v2 
+ Memory: 16G DDR3 1333 
+
+1. Single Client 
+ ![](thread1.png "Single Client") 
+
+1. 8 Clients 
+ ![](thread8.png "8 Clients") 
+
+1. 15 Clients 
+ ![](thread15.png "15 Clients") 
+
 ## UDP communication classes
 
 The UDP communication class encapsulates the most basic send and receive operations. The content of the communication is transmitted in clear text. See the UdpDemo code in main.go for details.

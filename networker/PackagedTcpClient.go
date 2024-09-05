@@ -12,6 +12,9 @@ import (
 type PackagedTcpClient struct {
 	tcpClientBase
 
+	curPacSN uint16
+	lckSN    sync.Mutex
+
 	recLock    sync.Mutex
 	queLock    sync.Mutex
 	workerLock sync.Mutex
@@ -24,6 +27,22 @@ type PackagedTcpClient struct {
 
 	readPacChan  chan bool
 	OnOnePackage func(tcp *PackagedTcpClient, pacSN uint16, cmd uint16, data []byte)
+}
+
+func (tcp *PackagedTcpClient) GetNexPacSN() uint16 {
+	tcp.lckSN.Lock()
+	defer tcp.lckSN.Unlock()
+
+	tcp.curPacSN++
+	if tcp.curPacSN > 32760 {
+		tcp.curPacSN = 0
+	}
+
+	return tcp.curPacSN
+}
+
+func (tcp *PackagedTcpClient) GetNexPacSNJava() int {
+	return int(tcp.GetNexPacSN())
 }
 
 func NewClient(conn *net.Conn) *PackagedTcpClient {

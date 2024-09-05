@@ -144,7 +144,7 @@ func AuthorizeConn(lsn *TcpListener, conn *net.Conn) *AesTcpClient {
 	cmd := AesCmd{IsOK: true}
 	cmd.Data = ptc.Ecc.EccKey.PublicKey.Hex(true)
 	jdata, _ := json.Marshal(cmd)
-	pkg := ptc.SendJsonAndWait(GetNexPacSN(), Cmd_GetPubKey, string(jdata), nil, 3000)
+	pkg := ptc.SendJsonAndWait(ptc.GetNexPacSN(), Cmd_GetPubKey, string(jdata), nil, 3000)
 	if nil == pkg {
 		fmt.Println("Failed to request public key")
 		ptc.Close()
@@ -172,7 +172,7 @@ func AuthorizeConn(lsn *TcpListener, conn *net.Conn) *AesTcpClient {
 
 	cmd.Data = time.Now().Unix()
 	jdata, _ = json.Marshal(cmd)
-	pkg = ptc.SendJsonAndWait(GetNexPacSN(), Cmd_GetPrivateKey, string(jdata), nil, 3000)
+	pkg = ptc.SendJsonAndWait(ptc.GetNexPacSN(), Cmd_GetPrivateKey, string(jdata), nil, 3000)
 	if nil == pkg {
 		fmt.Println("failed to request private key")
 		ptc.Close()
@@ -204,7 +204,7 @@ func AuthorizeConn(lsn *TcpListener, conn *net.Conn) *AesTcpClient {
 		//请求用户名密码
 		cmd.Data = time.Now().Unix()
 		jdata, _ = json.Marshal(cmd)
-		pkg = ptc.SendJsonAndWait(GetNexPacSN(), Cmd_GetUserNamePwd, string(jdata), nil, 3000)
+		pkg = ptc.SendJsonAndWait(ptc.GetNexPacSN(), Cmd_GetUserNamePwd, string(jdata), nil, 3000)
 		if nil == pkg {
 			fmt.Println("Failed to request name and password")
 			ptc.Close()
@@ -263,7 +263,7 @@ func AuthorizeConn(lsn *TcpListener, conn *net.Conn) *AesTcpClient {
 
 	//发送认证结果
 	jdata, _ = json.Marshal(rslt)
-	ptc.SendJson(GetNexPacSN(), Cmd_AuthorizeResult, string(jdata), nil)
+	ptc.SendJson(ptc.GetNexPacSN(), Cmd_AuthorizeResult, string(jdata), nil)
 
 	if rslt.IsOK {
 		ptc.User = &LoginUserInfo{ID: 0, Name: name}

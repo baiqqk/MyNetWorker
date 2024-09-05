@@ -2,35 +2,7 @@ package networker
 
 import (
 	"bytes"
-	"sync"
 )
-
-var curPacSN uint16
-var lckSN sync.Mutex
-
-func GetNexPacSN() uint16 {
-	lckSN.Lock()
-	defer lckSN.Unlock()
-
-	curPacSN++
-	if curPacSN > 32760 {
-		curPacSN = 0
-	}
-
-	return curPacSN
-}
-
-func GetNexPacSNJava() int {
-	lckSN.Lock()
-	defer lckSN.Unlock()
-
-	curPacSN++
-	if curPacSN > 32760 {
-		curPacSN = 0
-	}
-
-	return int(curPacSN)
-}
 
 type Package struct {
 	PacSN uint16

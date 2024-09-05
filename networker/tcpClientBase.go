@@ -13,6 +13,8 @@ type tcpClientBase struct {
 	User            *LoginUserInfo
 	lastSendTime    time.Time
 	lastReceiveTime time.Time
+
+	OnClosed func()
 }
 
 func (tcp *tcpClientBase) IsConnected() bool {
@@ -25,6 +27,9 @@ func (tcp *tcpClientBase) GetLastReceiveTime() time.Time {
 
 func (tcp *tcpClientBase) onClosedHandler() {
 	fmt.Println("连接关闭")
+	if nil != tcp.OnClosed {
+		tcp.OnClosed()
+	}
 }
 
 //export Version
