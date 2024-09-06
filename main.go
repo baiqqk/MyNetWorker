@@ -50,12 +50,11 @@ func UdpDemo() {
 func TcpDemo() {
 
 	tcpSvr()
-	tcpCli()
+	// tcpCli()
 
 	for {
 		time.Sleep(time.Second)
 	}
-
 }
 
 var clients []*networker.AesTcpClient

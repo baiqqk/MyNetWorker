@@ -2,7 +2,9 @@ package networker
 
 import (
 	"container/list"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -195,15 +197,19 @@ func (tcp *PackagedTcpClient) waitLoop() {
 			// fmt.Println("PackagedTcpClient.waitLoop 读0xAE End buf[0]=", buf[0])
 			if nil != err {
 
-				if strings.Contains(err.Error(), "timeout") {
+				//如果没有接收到任何数据会产生超时错误，忽略此错误，继续等待数据
+				operr := err.(*net.OpError)
+				if nil != operr && operr.Timeout() {
+					continue
+				} else if strings.Contains(err.Error(), "timeout") {
 					// fmt.Println("PackagedTcpClient.waitLoop 读0xAE timeout", err)
-					//如果没有接收到任何数据会产生超时错误，忽略此错误，继续等待数据
 					continue
 				}
 
 				fmt.Println("PackagedTcpClient.waitLoop 读AE异常", err)
 
-				if strings.Contains(err.Error(), "EOF") {
+				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, net.ErrClosed) ||
+					strings.Contains(err.Error(), "closed") {
 					tcp.Close()
 					// tcp.reader = nil
 					tcp.readPacChan <- true
@@ -224,7 +230,7 @@ func (tcp *PackagedTcpClient) waitLoop() {
 			if nil != err {
 				fmt.Println("PackagedTcpClient.waitLoop 读86异常", err)
 
-				if strings.Contains(err.Error(), "EOF") {
+				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") {
 					tcp.Close()
 					tcp.readPacChan <- true
 					return
@@ -246,7 +252,7 @@ func (tcp *PackagedTcpClient) waitLoop() {
 		if nil != err {
 			fmt.Println("PackagedTcpClient.waitLoop 读PacSN异常", err)
 
-			if strings.Contains(err.Error(), "EOF") {
+			if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") {
 				tcp.Close()
 				tcp.readPacChan <- true
 				return
@@ -261,7 +267,7 @@ func (tcp *PackagedTcpClient) waitLoop() {
 		if nil != err {
 			fmt.Println("PackagedTcpClient.waitLoop 读cmd异常", err)
 
-			if strings.Contains(err.Error(), "EOF") {
+			if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") {
 				tcp.Close()
 				tcp.readPacChan <- true
 				return
@@ -276,7 +282,7 @@ func (tcp *PackagedTcpClient) waitLoop() {
 		if nil != err {
 			fmt.Println("PackagedTcpClient.waitLoop 读dataLen异常", err)
 
-			if strings.Contains(err.Error(), "EOF") {
+			if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") {
 				tcp.Close()
 				tcp.readPacChan <- true
 				return
@@ -294,7 +300,7 @@ func (tcp *PackagedTcpClient) waitLoop() {
 		if nil != err {
 			fmt.Println("PackagedTcpClient.waitLoop 读dataLen异常", err)
 
-			if strings.Contains(err.Error(), "EOF") {
+			if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") {
 				tcp.Close()
 				tcp.readPacChan <- true
 				return

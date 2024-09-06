@@ -1,9 +1,12 @@
 package networker
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -102,6 +105,9 @@ func (tcp *tcpClientBase) WriteWithTimeOut(data []byte, msWait int) int {
 	for totalSend < totalLen {
 		count, err := conn.Write(data[totalSend:])
 		if nil != err {
+			if errors.Is(err, io.ErrClosedPipe) || strings.Contains(err.Error(), "broken pipe") {
+				tcp.Close()
+			}
 			fmt.Println("TcpClinetBase.WriteWithTimeOut 异常", err)
 			return -1
 		}
