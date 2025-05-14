@@ -82,10 +82,6 @@ func AesDecrypt(data []byte, key []byte) ([]byte, error) {
 	return crypted, nil
 }
 
-func bytesCombine2(pBytes ...[]byte) []byte {
-	return bytes.Join(pBytes, []byte(""))
-}
-
 // 随机加密
 func RandomEncrypt(data []byte, key []byte) ([]byte, error) {
 
@@ -95,7 +91,10 @@ func RandomEncrypt(data []byte, key []byte) ([]byte, error) {
 	rand.Read(pre_Data)
 	rand.Read(end_Data)
 
-	return AesEncrypt(bytesCombine2(pre_Data, data, end_Data), key)
+	pre_Data = append(pre_Data, data...)
+	pre_Data = append(pre_Data, end_Data...)
+
+	return AesEncrypt(pre_Data, key)
 }
 
 // 随机解密
