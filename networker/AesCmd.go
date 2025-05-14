@@ -9,15 +9,14 @@ type CmdType uint16
 
 // 命令大分类（13比特位）
 const (
-	Cmd_Basic = 0 >> 3
-	Cmd_User  = 256 >> 3
+	Cmd_Basic = 0
+	Cmd_User  = 1
 )
 
 // 命令细分类（3比特位）
 const (
 	Cmd_Hearbeat = iota | (Cmd_Basic << 3)
-	Cmd_GetPubKey
-	Cmd_GetPrivateKey
+	Cmd_GetAesKey
 	Cmd_GetUserNamePwd
 	Cmd_AuthorizeResult
 	Cmd_Test

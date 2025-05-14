@@ -28,74 +28,41 @@ package networker
 
 import (
 	"fmt"
-
-	ecies "github.com/ecies/go/v2"
 )
 
 type AesPackage struct {
-	PacSN       uint16
-	Cmd         uint16
-	IsEncrypted bool
-	Json        string
-	ExtData     []byte
+	PacSN   uint16
+	Cmd     uint16
+	Json    string
+	ExtData []byte
 }
 
 func (pkg *AesPackage) ToAesStream(aesKey []byte) []byte {
-	//包格式：1字节标识位 + 2字节Json长度(小端结尾) + Json数据 + ExtData
+	//包格式：2字节(cmd+Json)长度(小端结尾) 2字节cmd(小端结尾) + + Json数据 + ExtData
 
-	jsonData := []byte(pkg.Json)
-	jsonLen := 0
-	if nil != jsonData {
-		jsonLen = len(jsonData)
-	}
+	buf := []byte{byte(pkg.Cmd >> 8), byte(pkg.Cmd)}
+	buf = append(buf, []byte(pkg.Json)...)
 
-	flag := make([]byte, 3)
-	if pkg.IsEncrypted {
-		flag[0] = 1
-		enData, err := RandomEncrypt(jsonData, aesKey)
+	if len(aesKey) > 0 {
+		enc, err := RandomEncrypt(buf, aesKey)
 		if nil != err {
 			fmt.Println("FurisonPackage.ToAesStream 加密Json异常", err)
 			return nil
 		}
 
-		jsonData = enData
-		jsonLen = len(jsonData)
-	} else {
-		flag[0] = 0
-	}
-	flag[1] = byte(jsonLen >> 8)
-	flag[2] = byte(jsonLen)
-
-	return bytesCombine2(flag, jsonData, pkg.ExtData)
-}
-
-func (pkg *AesPackage) ToEccStream(eccKey *ecies.PublicKey) []byte {
-	//包格式：1字节标识位 + 2字节Json长度(小端结尾) + Json数据 + ExtData
-
-	jsonData := []byte(pkg.Json)
-	jsonLen := 0
-	if nil != jsonData {
-		jsonLen = len(jsonData)
+		buf = enc
 	}
 
-	flag := make([]byte, 3)
-	if pkg.IsEncrypted {
-		flag[0] = 1
-		enData, err := ecies.Encrypt(eccKey, jsonData)
-		if nil != err {
-			fmt.Println("FurisonPackage.ToEccStream 加密Json异常", err)
-			return nil
-		}
+	bufLen := len(buf)
 
-		jsonData = enData
-		jsonLen = len(jsonData)
-	} else {
-		flag[0] = 0
-	}
-	flag[1] = byte(jsonLen >> 8)
-	flag[2] = byte(jsonLen)
+	flag := make([]byte, 2)
+	flag[0] = byte(bufLen >> 8)
+	flag[1] = byte(bufLen)
 
-	return bytesCombine2(flag, jsonData, pkg.ExtData)
+	flag = append(flag, buf...)
+	flag = append(flag, pkg.ExtData...)
+
+	return flag
 }
 
 func (pac *AesPackage) SetPacSN(val int) {

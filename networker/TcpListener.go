@@ -7,8 +7,6 @@ import (
 	"net"
 	"strconv"
 	"time"
-
-	ecies "github.com/ecies/go/v2"
 )
 
 type TcpListener struct {
@@ -92,7 +90,7 @@ func (tcp *AesTcpClient) Login(host string, port int, username string, pwd strin
 			return false
 		}
 
-		fmt.Println("接收到数据 PacSN=", pac.PacSN, " Cmd=", pac.Cmd, " Json=", string(pac.Json), " data=", pac.ExtData)
+		fmt.Println(tcp.ClientFlag, "接收到数据 PacSN=", pac.PacSN, " Cmd=", pac.Cmd, " Json=", string(pac.Json), " data=", pac.ExtData)
 		// client.SendJson()
 
 		switch pac.Cmd {
@@ -137,67 +135,42 @@ func (tcp *AesTcpClient) Login(host string, port int, username string, pwd strin
 func AuthorizeConn(lsn *TcpListener, conn *net.Conn) *AesTcpClient {
 	var name, password string
 
+	ecc := &ECC{}
+	ecc.initKey()
+
 	ptc := NewAesTcpClientWithConn(conn)
-	fmt.Println("Received client:", (*conn).RemoteAddr())
+	ptc.ClientFlag = "Server"
+	fmt.Println(ptc.ClientFlag, "Received client:", (*conn).RemoteAddr())
 	ptc.StartWaitLoop()
 
 	cmd := AesCmd{IsOK: true}
-	cmd.Data = ptc.Ecc.EccKey.PublicKey.Hex(true)
+	cmd.Data = ecc.EccKey.PublicKey.Hex(true)
 	jdata, _ := json.Marshal(cmd)
-	pkg := ptc.SendJsonAndWait(ptc.GetNexPacSN(), Cmd_GetPubKey, string(jdata), nil, 3000)
+	pkg := ptc.SendJsonAndWait(ptc.GetNexPacSN(), Cmd_GetAesKey, string(jdata), nil, 3000)
 	if nil == pkg {
-		fmt.Println("Failed to request public key")
+		fmt.Println(ptc.ClientFlag, "Failed to request Aes key")
 		ptc.Close()
 		return nil
 	}
 
-	fmt.Println("Received:", pkg.Json)
+	fmt.Println(ptc.ClientFlag, "Received:", pkg.Json)
 	var cmdRslt AesCmd
 	err := json.Unmarshal([]byte(pkg.Json), &cmdRslt)
 	if nil != err {
-		fmt.Println("Failed to convert package to command", err)
+		fmt.Println(ptc.ClientFlag, "Failed to convert package to command", err)
 		ptc.Close()
 		return nil
 	}
 
-	key, err := ecies.NewPublicKeyFromHex(cmdRslt.Data.(string))
+	data, err := hex.DecodeString(cmdRslt.Data.(string))
 	if nil != err {
-		fmt.Println("Failed to convert public key", err)
+		fmt.Println(ptc.ClientFlag, "Failed to convert hex key data to []byte", err)
 		ptc.Close()
 		return nil
 	}
 
-	ptc.PubKey = key
-	fmt.Println("Public Key:", ptc.PubKey.Hex(true))
-
-	cmd.Data = time.Now().Unix()
-	jdata, _ = json.Marshal(cmd)
-	pkg = ptc.SendJsonAndWait(ptc.GetNexPacSN(), Cmd_GetPrivateKey, string(jdata), nil, 3000)
-	if nil == pkg {
-		fmt.Println("failed to request private key")
-		ptc.Close()
-		return nil
-	}
-
-	fmt.Println("Received: ", pkg.Json)
-	err = json.Unmarshal([]byte(pkg.Json), &cmdRslt)
-	if nil != err {
-		fmt.Println("Failed to convert package to command", err)
-		ptc.Close()
-		return nil
-	}
-	if nil == cmdRslt.Data {
-		fmt.Println("Empty private key", err)
-		ptc.Close()
-		return nil
-	}
-	tmpKey, err := hex.DecodeString(cmdRslt.Data.(string))
-	if nil != err {
-		fmt.Println("Failed to convert private key", err)
-		ptc.Close()
-		return nil
-	}
-	ptc.EncryptKey = tmpKey
+	key := ecc.Decrypt(data)
+	ptc.aesKey = key
 
 	rslt := AesCmd{IsOK: false}
 	for idx := 0; idx < 1; idx++ {
@@ -206,12 +179,12 @@ func AuthorizeConn(lsn *TcpListener, conn *net.Conn) *AesTcpClient {
 		jdata, _ = json.Marshal(cmd)
 		pkg = ptc.SendJsonAndWait(ptc.GetNexPacSN(), Cmd_GetUserNamePwd, string(jdata), nil, 3000)
 		if nil == pkg {
-			fmt.Println("Failed to request name and password")
+			fmt.Println(ptc.ClientFlag, "Failed to request name and password")
 			ptc.Close()
 			return nil
 		}
 
-		fmt.Println("Received: ", pkg.Json)
+		fmt.Println(ptc.ClientFlag, "Received: ", pkg.Json)
 		err = json.Unmarshal([]byte(pkg.Json), &cmdRslt)
 		if nil != err {
 			fmt.Println("Failed to convert package to command", err)
@@ -267,10 +240,10 @@ func AuthorizeConn(lsn *TcpListener, conn *net.Conn) *AesTcpClient {
 
 	if rslt.IsOK {
 		ptc.User = &LoginUserInfo{ID: 0, Name: name}
-		fmt.Println("Authorize OK")
+		fmt.Println(ptc.ClientFlag, "Authorize OK")
 		return ptc
 	} else {
-		fmt.Println("Failed to authorize:", rslt.Msg)
+		fmt.Println(ptc.ClientFlag, "Failed to authorize:", rslt.Msg)
 		ptc.Close()
 		return nil
 	}

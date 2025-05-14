@@ -5,9 +5,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
-	"encoding/binary"
+	"crypto/rand"
 	"errors"
-	"math/rand"
 )
 
 //加密过程：
@@ -89,21 +88,12 @@ func bytesCombine2(pBytes ...[]byte) []byte {
 
 // 随机加密
 func RandomEncrypt(data []byte, key []byte) ([]byte, error) {
-	numPre := rand.Uint32()
-	numEnd := rand.Uint32()
 
 	pre_Data := make([]byte, 4)
 	end_Data := make([]byte, 4)
 
-	pre_Data[0] = (byte)(numPre)
-	pre_Data[1] = (byte)(numPre >> 8)
-	pre_Data[2] = (byte)(numPre >> 16)
-	pre_Data[3] = (byte)(numPre >> 24)
-
-	end_Data[0] = (byte)(numEnd)
-	end_Data[1] = (byte)(numEnd >> 8)
-	end_Data[2] = (byte)(numEnd >> 16)
-	end_Data[3] = (byte)(numEnd >> 24)
+	rand.Read(pre_Data)
+	rand.Read(end_Data)
 
 	return AesEncrypt(bytesCombine2(pre_Data, data, end_Data), key)
 }
@@ -120,17 +110,11 @@ func RandomDecrypt(data []byte, key []byte) ([]byte, error) {
 }
 
 // 生成一个随机密钥
-func getRandomKey() []byte {
-	key1 := rand.Uint64()
-	key2 := rand.Uint64()
+func newAesKey() []byte {
+	data := make([]byte, 16)
+	rand.Read(data)
 
-	data1 := make([]byte, 8)
-	data2 := make([]byte, 8)
-
-	binary.LittleEndian.PutUint64(data1, key1)
-	binary.LittleEndian.PutUint64(data2, key2)
-
-	return bytesCombine2(data1, data2)
+	return data
 }
 
 // // encryptByAes Aes加密 后 base64 再加

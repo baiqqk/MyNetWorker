@@ -38,6 +38,9 @@ import (
 
 type tcpClientBase struct {
 	conn *net.Conn
+
+	ClientFlag string
+
 	// reader *bufio.Reader
 	User            *LoginUserInfo
 	lastSendTime    time.Time
